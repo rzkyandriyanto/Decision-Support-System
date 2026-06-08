@@ -45,8 +45,8 @@ export async function extractPdfData(formData: FormData) {
 
       const lines = text.split('\n');
       for (const line of lines) {
-        // Mencari pola baris mata kuliah: Nama Matkul, SKS (1-8) dan Nilai (A-E)
-        const gradeMatch = line.match(/^(.*?)\b([1-8])\s*([A-E][+-]?)\b|^(.*?)\b([A-E][+-]?)\s*([1-8])\b/);
+        // Pola baris: Nama Matkul, SKS (1-8), Nilai (A-E dengan/tanpa +/-), dan dipisahkan spasi
+        const gradeMatch = line.match(/(?:^|\s)(.*?)\s+([1-8])\s+([A-E][+-]?)(?:\s|$)|(?:^|\s)(.*?)\s+([A-E][+-]?)\s+([1-8])(?:\s|$)/i);
         
         if (gradeMatch) {
           courseRowsFound = true;
@@ -81,9 +81,9 @@ export async function extractPdfData(formData: FormData) {
 
       // Fallback jika pola baris mata kuliah tidak ditemukan di PDF
       if (!courseRowsFound || sks_total === 0) {
-        // Cari total SKS dengan berbagai variasi penulisan
-        const sksMatch = text.match(/(?:Total\s*SKS|Jumlah\s*SKS|SKS\s*Total|Kredit\s*Kumulatif|SKS\s*Kumulatif|Total\s*Kredit|SKS\s*Lulus|SKS\s*Diambil)[^\d]*(\d{2,3})/i) ||
-                         text.match(/SKS[^\d]*(\d{2,3})(?:\s|n)/i); // Fallback jika cuma tertulis 'SKS: 144'
+        // Cari total SKS dengan berbagai variasi penulisan termasuk 'JUMLAH'
+        const sksMatch = text.match(/(?:Total\s*SKS|Jumlah\s*SKS|SKS\s*Total|Kredit\s*Kumulatif|SKS\s*Kumulatif|Total\s*Kredit|SKS\s*Lulus|SKS\s*Diambil|JUMLAH)[^\d]*(\d{2,3})(?:\s|$)/i) ||
+                         text.match(/SKS[^\d]*(\d{2,3})(?:\s|\n)/i); // Fallback jika cuma tertulis 'SKS: 144'
         sks_total = sksMatch ? parseInt(sksMatch[1]) : (sks_total > 0 ? sks_total : 0);
         
         count_c = (text.match(/\bC[+-]?\b/g) || []).length;
