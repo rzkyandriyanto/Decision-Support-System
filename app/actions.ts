@@ -82,13 +82,20 @@ export async function extractPdfData(formData: FormData) {
       // Fallback jika pola baris mata kuliah tidak ditemukan di PDF
       if (!courseRowsFound || sks_total === 0) {
         // Cari total SKS dengan berbagai variasi penulisan termasuk 'JUMLAH'
-        const sksMatch = text.match(/(?:Total\s*SKS|Jumlah\s*SKS|SKS\s*Total|Kredit\s*Kumulatif|SKS\s*Kumulatif|Total\s*Kredit|SKS\s*Lulus|SKS\s*Diambil|JUMLAH)[^\d]*(\d{2,3})(?:\s|$)/i) ||
-                         text.match(/SKS[^\d]*(\d{2,3})(?:\s|\n)/i); // Fallback jika cuma tertulis 'SKS: 144'
+        let sksMatch = text.match(/(?:Total\s*SKS|Jumlah\s*SKS|SKS\s*Total|Kredit\s*Kumulatif|SKS\s*Kumulatif|Total\s*Kredit|SKS\s*Lulus|SKS\s*Diambil|JUMLAH)[^\d]*(\d{2,3})(?:\s|$)/i) ||
+                         text.match(/SKS[^\d]*(\d{2,3})(?:\s|\n)/i); 
+        
+        // Failsafe paling ekstrim: Cari angka antara 100-160 di bagian akhir dokumen
+        if (!sksMatch) {
+          const lastPart = text.slice(-1000);
+          sksMatch = lastPart.match(/\b(1[0-6]\d)\b/);
+        }
+
         sks_total = sksMatch ? parseInt(sksMatch[1]) : (sks_total > 0 ? sks_total : 0);
         
-        count_c = (text.match(/\bC[+-]?\b/g) || []).length;
-        count_d = (text.match(/\bD[+-]?\b/g) || []).length;
-        count_e = (text.match(/\bE\b/g) || []).length;
+        count_c = (text.match(/[\s\b]C[+-]?[\s\b]/g) || []).length;
+        count_d = (text.match(/[\s\b]D[+-]?[\s\b]/g) || []).length;
+        count_e = (text.match(/[\s\b]E[\s\b]/g) || []).length;
         
         // Simulasikan pinalti SKS jika fallback
         sks_total = Math.max(0, sks_total - (count_e * 3));
