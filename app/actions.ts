@@ -7,7 +7,7 @@ if (typeof global !== "undefined" && typeof (global as any).DOMMatrix === "undef
   (global as any).DOMMatrix = class DOMMatrix {};
 }
 
-const { PDFParse } = require("pdf-parse");
+const pdf = require("pdf-parse");
 
 export async function extractPdfData(formData: FormData) {
   try {
@@ -20,9 +20,8 @@ export async function extractPdfData(formData: FormData) {
     const extractedStudents = [];
 
     for (const file of files) {
-      const uint8Array = new Uint8Array(await file.arrayBuffer());
-      const parser = new PDFParse(uint8Array);
-      const parsed = await parser.getText();
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const parsed = await pdf(buffer);
       const text = parsed?.text || "";
 
       // Simplistic regex parsing to simulate extracting data from transkrip/KHS
