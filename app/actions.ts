@@ -45,26 +45,35 @@ export async function extractPdfData(formData: FormData) {
 
       const lines = text.split('\n');
       for (const line of lines) {
-        // Pola baris: Nama Matkul, SKS (1-8), Nilai (A-E dengan/tanpa +/-), dan dipisahkan spasi
-        const gradeMatch = line.match(/(?:^|\s)(.*?)\s+([1-8])\s+([A-E][+-]?)(?:\s|$)|(?:^|\s)(.*?)\s+([A-E][+-]?)\s+([1-8])(?:\s|$)/i);
+        // Regex 1: Format squashed / nempel dari pdf-parse (contoh: PENDIDIKAN AGAMA2A-7.34)
+        const squashedMatch = line.match(/(.*?)([1-8])([A-E][+-]?)\d{1,3}\.\d{2}(?:\s|$)/i);
+        // Regex 2: Format normal dengan spasi
+        const spacedMatch = line.match(/(?:^|\s)(.*?)\s+([1-8])\s+([A-E][+-]?)(?:\s|$)|(?:^|\s)(.*?)\s+([A-E][+-]?)\s+([1-8])(?:\s|$)/i);
         
-        if (gradeMatch) {
+        if (squashedMatch || spacedMatch) {
           courseRowsFound = true;
           let courseName = '';
           let sks = 0;
           let grade = '';
 
-          if (gradeMatch[2] && gradeMatch[3]) {
-            courseName = gradeMatch[1] || '';
-            sks = parseInt(gradeMatch[2]);
-            grade = gradeMatch[3].toUpperCase().replace(/[+-]/g, '');
-          } else if (gradeMatch[5] && gradeMatch[6]) {
-            courseName = gradeMatch[4] || '';
-            grade = gradeMatch[5].toUpperCase().replace(/[+-]/g, '');
-            sks = parseInt(gradeMatch[6]);
+          if (squashedMatch) {
+            courseName = squashedMatch[1] || '';
+            sks = parseInt(squashedMatch[2]);
+            grade = squashedMatch[3].toUpperCase().replace(/[+-]/g, '');
+          } else if (spacedMatch) {
+            if (spacedMatch[2] && spacedMatch[3]) {
+              courseName = spacedMatch[1] || '';
+              sks = parseInt(spacedMatch[2]);
+              grade = spacedMatch[3].toUpperCase().replace(/[+-]/g, '');
+            } else if (spacedMatch[5] && spacedMatch[6]) {
+              courseName = spacedMatch[4] || '';
+              grade = spacedMatch[5].toUpperCase().replace(/[+-]/g, '');
+              sks = parseInt(spacedMatch[6]);
+            }
           }
           
-          courseName = courseName.replace(/^\d+[\s.]*/, '').replace(/[^a-zA-Z0-9\s-]/g, '').trim();
+          // Bersihkan kode matkul (misal: "1 22PAM0012 PENDIDIKAN AGAMA" -> "PENDIDIKAN AGAMA")
+          courseName = courseName.replace(/^\d+\s+[A-Z0-9]+\s+/, '').replace(/[^a-zA-Z0-9\s-]/g, '').trim();
           if (!courseName || courseName.length < 3) courseName = "Unknown Course";
 
           // Automated Grade Counter & Bad Grades tracker
@@ -82,8 +91,9 @@ export async function extractPdfData(formData: FormData) {
       // Fallback jika pola baris mata kuliah tidak ditemukan di PDF
       if (!courseRowsFound || sks_total === 0) {
         // Cari total SKS dengan berbagai variasi penulisan termasuk 'JUMLAH'
-        let sksMatch = text.match(/(?:Total\s*SKS|Jumlah\s*SKS|SKS\s*Total|Kredit\s*Kumulatif|SKS\s*Kumulatif|Total\s*Kredit|SKS\s*Lulus|SKS\s*Diambil|JUMLAH)[^\d]*(\d{2,3})(?:\s|$)/i) ||
-                         text.match(/SKS[^\d]*(\d{2,3})(?:\s|\n)/i); 
+        let sksMatch = text.match(/(?:Total\s*SKS|Jumlah\s*SKS|SKS\s*Total|Kredit\s*Kumulatif|SKS\s*Kumulatif|Total\s*Kredit|SKS\s*Lulus|SKS\s*Diambil|JUMLAH)[^\d]*(\d{2,3})(?:\s|$|\d{2,3}\.)/i) ||
+                         text.match(/SKS[^\d]*(\d{2,3})(?:\s|\n)/i) ||
+                         text.match(/JUMLAH(\d{2,3})\d{2,3}\.\d{2}/i);
         
         // Failsafe paling ekstrim: Cari angka antara 100-160 di bagian akhir dokumen
         if (!sksMatch) {
