@@ -80,9 +80,11 @@ export async function extractPdfData(formData: FormData) {
       }
 
       // Fallback jika pola baris mata kuliah tidak ditemukan di PDF
-      if (!courseRowsFound) {
-        const sksMatch = text.match(/(?:SKS\s*Total|Total\s*SKS|Jumlah\s*SKS|Total\s*Kredit|Kredit\s*Kumulatif|SKS\s*Kumulatif)[^\d]*(\d{2,3})/i);
-        sks_total = sksMatch ? parseInt(sksMatch[1]) : 0;
+      if (!courseRowsFound || sks_total === 0) {
+        // Cari total SKS dengan berbagai variasi penulisan
+        const sksMatch = text.match(/(?:Total\s*SKS|Jumlah\s*SKS|SKS\s*Total|Kredit\s*Kumulatif|SKS\s*Kumulatif|Total\s*Kredit|SKS\s*Lulus|SKS\s*Diambil)[^\d]*(\d{2,3})/i) ||
+                         text.match(/SKS[^\d]*(\d{2,3})(?:\s|n)/i); // Fallback jika cuma tertulis 'SKS: 144'
+        sks_total = sksMatch ? parseInt(sksMatch[1]) : (sks_total > 0 ? sks_total : 0);
         
         count_c = (text.match(/\bC[+-]?\b/g) || []).length;
         count_d = (text.match(/\bD[+-]?\b/g) || []).length;
